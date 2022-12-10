@@ -244,12 +244,12 @@ const handleScanFinished = async () => {
   const discoveredPeripherals: PeripheralType[] = await BleManager.getDiscoveredPeripherals()
 
   // pega somente os OmniCare dentro que os que descobriu
-  const peripheralList: PeripheralType[] = discoveredPeripherals.filter(
-    (peripheral) => peripheral.name === 'OmniCare'
-  )
+  // const peripheralList: PeripheralType[] = discoveredPeripherals.filter(
+  //   (peripheral) => peripheral.name === 'OmniCare'
+  // )
 
   // envia para as telas
-  bleEmitter.emit('sendPeripheralList', peripheralList)
+  bleEmitter.emit('sendPeripheralList', discoveredPeripherals)
 }
 
 const handleNotify = async ({ characteristic, value }) => {

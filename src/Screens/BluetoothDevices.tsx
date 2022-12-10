@@ -5,92 +5,78 @@ import {
   TouchableOpacity,
   EmitterSubscription,
   RefreshControl,
-  BackHandler,
-  NativeEventSubscription,
 } from 'react-native'
 import { Button as IconButton } from 'react-native-elements'
 import { Icon } from 'react-native-elements'
 
-import { useTheme, useDispatcher, useRedux } from '@/Hooks'
+import { useTheme } from '@/Hooks'
 import { navigate } from '@/Navigators/utils'
 import {
-  Snackbar,
   Background,
   Logo,
   AppText,
   Button,
-  CircularProgress,
-  BottomView,
 } from '@/Components'
-import { api, Communication } from '@/Services'
-import { SnackbarType, PeripheralType, EXAMPLE_DEVICE, Equipment } from '@/Types'
-import { setConnectionStatus, updateDevice } from '@/Store/Slices'
-
-const SHOULD_SHOW_SIMULATE_CONNECTION = true
+import { Communication } from '@/Services'
+import { PeripheralType } from '@/Types'
 
 const BluetoothDevices = ({ navigation }) => {
+  const [devices, setDevices] = useState<PeripheralType[]>([])
+  const [refreshing, setRefreshing] = useState(false)
+  const { Colors, FontStyle } = useTheme()
 
-  // useEffect(() => {
-  //   let backHandler: NativeEventSubscription | null = null
-  //   let sendPeripheralListSubscription: EmitterSubscription | null = null
+  useEffect(() => {
+    let sendPeripheralListSubscription: EmitterSubscription | null = null
 
-  //   // callback executado toda vez que chega na página
-  //   const unsubscribeFocus = navigation.addListener('focus', () => {
-  //     (async () => {
-  //       try {
-  //         setDevices([])
-  //         dispatcher(setConnectionStatus({ type: 'bluetooth', status: false }))
-  //         dispatcher(
-  //           setConnectionStatus({ type: 'advancedWithoutBleConnection', status: false })
-  //         )
-  //         dispatcher(
-  //           setConnectionStatus({ type: 'simulatingConnection', status: false })
-  //         )
-  //         await Communication.initialize()
-  //         await Communication.disconnectFromAllDevices()
-  //         await _startRefresh()
-  //         console.log('Successfuly initialized Bluetooth.')
-  //       } catch (err) {
-  //         console.error('Error on initializing Bluetooth: ', err)
-  //       }
-  //     })()
+    // callback executado toda vez que chega na página
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      (async () => {
+        try {
+          setDevices([])
+          await Communication.initialize()
+          await Communication.disconnectFromAllDevices()
+          await _startRefresh()
+          console.log('Successfuly initialized Bluetooth.')
+        } catch (err) {
+          console.error('Error on initializing Bluetooth: ', err)
+        }
+      })()
 
-  //     const backAction = () => true
-  //     backHandler = BackHandler.addEventListener('hardwareBackPress', backAction)
+      // executada quando o serviço de Ble envia o evento 'sendPeripheralList' para as telas
+      // esse evento é enviado quando finaliza um scan
+      const handleDiscoveredPeripheralList = (peripheralList: PeripheralType[]) => {
+        console.log(peripheralList)
+        setDevices(peripheralList)
+        setRefreshing(false)
+      }
 
-  //     // executada quando o serviço de Ble envia o evento 'sendPeripheralList' para as telas
-  //     // esse evento é enviado quando finaliza um scan
-  //     const handleDiscoveredPeripheralList = (peripheralList: PeripheralType[]) => {
-  //       setDevices(peripheralList)
+      sendPeripheralListSubscription = Communication.bleEmitter.addListener(
+        'sendPeripheralList',
+        handleDiscoveredPeripheralList
+      )
+    })
 
-  //       setRefreshing(false)
-  //     }
+    const unsubscribeBlur = navigation.addListener('blur', () => {
+      Communication.remove()
+      if (sendPeripheralListSubscription) {
+        sendPeripheralListSubscription.remove()
+      }
+    })
 
-  //     sendPeripheralListSubscription = Communication.bleEmitter.addListener(
-  //       'sendPeripheralList',
-  //       handleDiscoveredPeripheralList
-  //     )
-  //   })
+    return () => {
+      unsubscribeFocus()
+      unsubscribeBlur()
+    }
+  }, [])
 
-  //   const unsubscribeBlur = navigation.addListener('blur', () => {
-  //     if (backHandler) {
-  //       backHandler.remove()
-  //     }
+  const _onDeviceSelected = (device: PeripheralType) => {
+    Communication.connectToDevice(device.id)
+  }
 
-  //     Communication.remove()
-  //     if (sendPeripheralListSubscription) {
-  //       sendPeripheralListSubscription.remove()
-  //     }
-  //   })
-
-  //   return () => {
-  //     unsubscribeFocus()
-  //     unsubscribeBlur()
-  //     if (backHandler) {
-  //       backHandler.remove()
-  //     }
-  //   }
-  // }, [])
+  const _startRefresh = async () => {
+    setRefreshing(true)
+    await Communication.startScan()
+  }
 
   return (
     <>
@@ -98,17 +84,88 @@ const BluetoothDevices = ({ navigation }) => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={_startRefresh} />}
       >
         <Logo height={100} />
-        <AppText>
-          Hello World!
-        </AppText>
 
+        {devices.length ? (
+          devices.map((device) => (
+            <View style={styles.listContainer} key={device.id}>
+              <TouchableOpacity
+                onPress={() => _onDeviceSelected(device)}
+                style={{ ...styles.item, borderBottomColor: Colors.gray }}
+              >
+                <Icon
+                  name={'bluetooth'}
+                  style={styles.icon}
+                  tvParallaxProperties // usado em iOS
+                  color={Colors.text}
+                />
+                <View>
+                  <AppText>{device.name}</AppText>
+                  <AppText style={{ fontSize: 11 }}>Bluetooth address: {device.id}</AppText>
+                </View>
+              </TouchableOpacity>
+            </View>
+          ))
+        ) : (
+          <AppText style={styles.notFoundText}>
+            {refreshing ? 'Pesquisando...' : 'Não encontrado.'}
+          </AppText>
+        )}
+
+        <IconButton
+          icon={
+            <Icon
+              name={'sync'}
+              color={Colors.searchButton}
+              style={styles.icon}
+              size={35}
+              tvParallaxProperties // usado em iOS
+            />
+          }
+          type="outline"
+          buttonStyle={{
+            borderColor: Colors.searchButton,
+            marginRight: 8,
+            borderRadius: 32,
+            marginTop: 16,
+          }}
+          titleStyle={{ color: Colors.searchButton, fontFamily: FontStyle.regular }}
+          title={'Buscar'}
+          containerStyle={{ marginBottom: 8 }}
+          onPress={_startRefresh}
+          disabled={refreshing}
+        />
+
+        <Button onPress={() => navigate('Home')}>Avançar</Button>
       </Background>
-
     </>
   )
 }
 
 const styles = StyleSheet.create({
+  listContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  item: {
+    minWidth: '100%',
+    padding: 12,
+    marginBottom: 8,
+    borderBottomWidth: 2,
+
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  icon: {
+    marginRight: 8,
+  },
+  notFoundText: {
+    textAlign: 'center',
+    fontSize: 14,
+
+    marginBottom: 24,
+  },
 })
 
 export default BluetoothDevices

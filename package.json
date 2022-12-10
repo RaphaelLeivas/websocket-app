@@ -63,7 +63,7 @@
     "@react-native-community/eslint-config": "^2.0.0",
     "@types/fbemitter": "^2.0.32",
     "@types/jest": "^27.0.2",
-    "@types/react": "^17.0.30",
+    "@types/react": "17.0.2",
     "@types/react-native": "^0.65.9",
     "@types/react-redux": "^7.1.20",
     "@types/react-test-renderer": "^17.0.1",
@@ -101,5 +101,8 @@
     "transformIgnorePatterns": [
       "/node_modules/(?!@react-native|react-native)"
     ]
+  },
+  "resolutions": {
+    "@types/react": "^17.0.38"
   }
 }
