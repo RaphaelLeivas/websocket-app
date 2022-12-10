@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  EmitterSubscription,
   RefreshControl,
 } from 'react-native'
 import { Button as IconButton } from 'react-native-elements'
@@ -17,8 +16,8 @@ import {
   AppText,
   Button,
 } from '@/Components'
-import { Communication } from '@/Services'
 import { PeripheralType } from '@/Types'
+import { BluetoothSerialDriver } from '@/Drivers'
 
 const BluetoothDevices = ({ navigation }) => {
   const [devices, setDevices] = useState<PeripheralType[]>([])
@@ -26,56 +25,41 @@ const BluetoothDevices = ({ navigation }) => {
   const { Colors, FontStyle } = useTheme()
 
   useEffect(() => {
-    let sendPeripheralListSubscription: EmitterSubscription | null = null
-
     // callback executado toda vez que chega na página
     const unsubscribeFocus = navigation.addListener('focus', () => {
       (async () => {
         try {
           setDevices([])
-          await Communication.initialize()
-          await Communication.disconnectFromAllDevices()
+          // await Communication.initialize()
+          // await Communication.disconnectFromAllDevices()
+          await BluetoothSerialDriver.disconnectFromDevice()
           await _startRefresh()
-          console.log('Successfuly initialized Bluetooth.')
         } catch (err) {
           console.error('Error on initializing Bluetooth: ', err)
         }
       })()
-
-      // executada quando o serviço de Ble envia o evento 'sendPeripheralList' para as telas
-      // esse evento é enviado quando finaliza um scan
-      const handleDiscoveredPeripheralList = (peripheralList: PeripheralType[]) => {
-        console.log(peripheralList)
-        setDevices(peripheralList)
-        setRefreshing(false)
-      }
-
-      sendPeripheralListSubscription = Communication.bleEmitter.addListener(
-        'sendPeripheralList',
-        handleDiscoveredPeripheralList
-      )
-    })
-
-    const unsubscribeBlur = navigation.addListener('blur', () => {
-      Communication.remove()
-      if (sendPeripheralListSubscription) {
-        sendPeripheralListSubscription.remove()
-      }
     })
 
     return () => {
       unsubscribeFocus()
-      unsubscribeBlur()
     }
   }, [])
 
-  const _onDeviceSelected = (device: PeripheralType) => {
-    Communication.connectToDevice(device.id)
+  const _onDeviceSelected = async (device: PeripheralType) => {
+    await BluetoothSerialDriver.connectToDevice(device.id)
+    setTimeout(() => navigate('Home'), 1000)
   }
 
   const _startRefresh = async () => {
     setRefreshing(true)
-    await Communication.startScan()
+    const discoveredDevices = await BluetoothSerialDriver.scanUnpairedDevices()
+    setDevices(discoveredDevices)
+    // console.log('>>LOG  ~ file: BluetoothDevices.tsx:80 ~ discoveredDevices', discoveredDevices)
+    setRefreshing(false)
+  }
+
+  const _handleDisconnectDevice = async () => {
+    await BluetoothSerialDriver.disconnectFromDevice()
   }
 
   return (
@@ -136,6 +120,8 @@ const BluetoothDevices = ({ navigation }) => {
         />
 
         <Button onPress={() => navigate('Home')}>Avançar</Button>
+        <Button onPress={_handleDisconnectDevice}>Desconectar</Button>
+
       </Background>
     </>
   )

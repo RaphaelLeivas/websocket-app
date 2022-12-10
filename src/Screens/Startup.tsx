@@ -6,6 +6,7 @@ import { Logo, AppText } from '@/Components'
 import { setDefaultTheme } from '@/Store/Slices'
 import { navigateAndSimpleReset } from '@/Navigators/utils'
 import { Permissions } from '@/Services'
+import { BluetoothSerialDriver } from '@/Drivers'
 
 const Startup = () => {
   const { Layout, Gutters, Fonts, Colors } = useTheme()
@@ -13,6 +14,7 @@ const Startup = () => {
   const initializeApp = async () => {
     try {
       await Permissions.requestAllPermissions()
+      await BluetoothSerialDriver.requestBluetoothEnable()
 
       setDefaultTheme({ theme: 'default', darkMode: false })
       setTimeout(() => {

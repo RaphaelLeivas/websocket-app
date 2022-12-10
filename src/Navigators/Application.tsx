@@ -20,6 +20,7 @@ LogBox.ignoreLogs([
   'VirtualizedLists should never be nested inside',
   '`new NativeEventEmitter()` was called',
   'Using Math.random is not cryptographically secure!',
+  'EventEmitter.removeListener',
 ])
 
 const ApplicationNavigator = () => {
