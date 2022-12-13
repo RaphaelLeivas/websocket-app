@@ -15,14 +15,24 @@ import {
   Logo,
   AppText,
   Button,
+  CircularProgress,
+  Snackbar,
+  BottomView,
 } from '@/Components'
-import { PeripheralType } from '@/Types'
+import { PeripheralType, SnackbarType } from '@/Types'
 import { BluetoothSerialDriver } from '@/Drivers'
 
 const BluetoothDevices = ({ navigation }) => {
   const [devices, setDevices] = useState<PeripheralType[]>([])
   const [refreshing, setRefreshing] = useState(false)
+  const [loading, setLoading] = useState(false)
   const { Colors, FontStyle } = useTheme()
+
+  const [snackbarVisible, setSnackbarVisible] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState('')
+  const [snackbarType, setSnackbarType] = useState<SnackbarType>('success')
+  const [snackbarTime, setSnackbarTime] = useState(1500)
+
 
   useEffect(() => {
     // callback executado toda vez que chega na página
@@ -46,8 +56,23 @@ const BluetoothDevices = ({ navigation }) => {
   }, [])
 
   const _onDeviceSelected = async (device: PeripheralType) => {
-    await BluetoothSerialDriver.connectToDevice(device.id)
-    setTimeout(() => navigate('Home'), 1000)
+    try {
+      setLoading(true)
+      await BluetoothSerialDriver.connectToDevice(device.id)
+      setLoading(false)
+      setSnackbarVisible(true)
+      setSnackbarMessage('Conectado com sucesso!')
+      setSnackbarType('success')
+      setSnackbarTime(1500)
+
+      setTimeout(() => navigate('Home'), 1000)
+    } catch (error) {
+      setSnackbarVisible(true)
+      setSnackbarMessage('Falha ao conectar ao HC-05!')
+      setSnackbarType('error')
+      setSnackbarTime(1500)
+    }
+
   }
 
   const _startRefresh = async () => {
@@ -56,10 +81,6 @@ const BluetoothDevices = ({ navigation }) => {
     setDevices(discoveredDevices)
     // console.log('>>LOG  ~ file: BluetoothDevices.tsx:80 ~ discoveredDevices', discoveredDevices)
     setRefreshing(false)
-  }
-
-  const _handleDisconnectDevice = async () => {
-    await BluetoothSerialDriver.disconnectFromDevice()
   }
 
   return (
@@ -119,10 +140,19 @@ const BluetoothDevices = ({ navigation }) => {
           disabled={refreshing}
         />
 
-        <Button onPress={() => navigate('Home')}>Avançar</Button>
-        <Button onPress={_handleDisconnectDevice}>Desconectar</Button>
-
       </Background>
+      <BottomView>
+        <Button onPress={() => navigate('Home')}>Avançar sem conectar</Button>
+      </BottomView>
+      <Snackbar
+        visible={snackbarVisible}
+        handleClose={() => setSnackbarVisible(false)}
+        message={snackbarMessage}
+        type={snackbarType}
+        duration={snackbarTime}
+      />
+
+      <CircularProgress loading={loading} message={'Conectando...'} />
     </>
   )
 }
